@@ -1,466 +1,669 @@
-import { useEffect, useState } from "react";
-import QRCode from "qrcode";
-import { Phone, MapPin, Shield, User, BookOpen, CheckCircle2 } from "lucide-react";
-import type { SiteSettings } from "@/lib/queries";
+import { createFileRoute } from "@tanstack/react-router";
+import { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { AdminHeader, useCollection } from "@/components/admin/crud";
+import { settingsQuery } from "@/lib/queries";
+import { StudentIdCard, type Student, type CardCustomization } from "@/components/admin/StudentIdCard";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  Printer,
+  Search,
+  Filter,
+  CheckSquare,
+  Square,
+  Eye,
+  X,
+  CreditCard,
+  FileText,
+  School,
+  Sparkles,
+  Download,
+  Layers,
+} from "lucide-react";
+import { toast } from "sonner";
 
-export type Student = {
-  id: string;
-  qr_token: string;
-  admission_no: string | null;
-  roll_no: string | null;
-  first_name: string;
-  last_name: string | null;
-  gender: string | null;
-  date_of_birth: string | null;
-  blood_group: string | null;
-  address: string | null;
-  phone: string | null;
-  email: string | null;
-  photo_url: string | null;
-  classroom_id: string | null;
-  grade: string | null;
-  section: string | null;
-  admission_date: string | null;
-  father_name: string | null;
-  father_phone: string | null;
-  mother_name: string | null;
-  mother_phone: string | null;
-  guardian_name: string | null;
-  guardian_phone: string | null;
-  is_active: boolean;
-};
+export const Route = createFileRoute("/_authenticated/admin/id-cards")({
+  component: AdminIdCards,
+});
 
-export type ThemeColor = "navy" | "emerald" | "crimson" | "midnight" | "royal" | "gold";
-export type BgStyle = "gradient" | "mesh" | "watermark" | "minimal";
+const sb = supabase as any;
 
-export type CardCustomization = {
-  schoolName: string;
-  motto: string;
-  session: string;
-  principalName: string;
-  themeColor: ThemeColor;
-  bgStyle?: BgStyle;
-  logoUrl?: string;
-  phone?: string;
-  address?: string;
-  website?: string;
-  showBackSide?: boolean;
-};
+// Helper to chunk array into pages of given size
+function chunkArray<T>(arr: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) {
+    chunks.push(arr.slice(i, i + size));
+  }
+  return chunks;
+}
 
-export type ThemeConfig = {
-  primaryStart: string;
-  primaryEnd: string;
-  accent: string;
-  accentText: string;
-  bgGradient: string;
-  badgeBg: string;
-  badgeText: string;
-  cardBorder: string;
-};
+export function AdminIdCards() {
+  const { data: students = [], isLoading: isLoadingStudents } = useCollection<Student>("students", "created_at", false);
+  const { data: settings } = useQuery(settingsQuery);
 
-export const themeMap: Record<ThemeColor, ThemeConfig> = {
-  navy: {
-    primaryStart: "#0f2b5c",
-    primaryEnd: "#1e40af",
-    accent: "#f59e0b",
-    accentText: "#fef08a",
-    bgGradient: "linear-gradient(135deg, #f8fafc 0%, #eff6ff 50%, #e2e8f0 100%)",
-    badgeBg: "#dbeafe",
-    badgeText: "#1e40af",
-    cardBorder: "#3b82f6",
-  },
-  emerald: {
-    primaryStart: "#064e3b",
-    primaryEnd: "#047857",
-    accent: "#fbbf24",
-    accentText: "#fde047",
-    bgGradient: "linear-gradient(135deg, #f0fdf4 0%, #e6f4ea 50%, #dcfce7 100%)",
-    badgeBg: "#dcfce7",
-    badgeText: "#065f46",
-    cardBorder: "#10b981",
-  },
-  crimson: {
-    primaryStart: "#881337",
-    primaryEnd: "#be123c",
-    accent: "#fde047",
-    accentText: "#fef08a",
-    bgGradient: "linear-gradient(135deg, #fff1f2 0%, #ffe4e6 50%, #fecdd3 100%)",
-    badgeBg: "#ffe4e6",
-    badgeText: "#9f1239",
-    cardBorder: "#f43f5e",
-  },
-  midnight: {
-    primaryStart: "#0f172a",
-    primaryEnd: "#1e293b",
-    accent: "#38bdf8",
-    accentText: "#7dd3fc",
-    bgGradient: "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 50%, #e2e8f0 100%)",
-    badgeBg: "#e0f2fe",
-    badgeText: "#0369a1",
-    cardBorder: "#0284c7",
-  },
-  royal: {
-    primaryStart: "#581c87",
-    primaryEnd: "#7e22ce",
-    accent: "#facc15",
-    accentText: "#fde047",
-    bgGradient: "linear-gradient(135deg, #faf5ff 0%, #f3e8ff 50%, #e9d5ff 100%)",
-    badgeBg: "#f3e8ff",
-    badgeText: "#6b21a8",
-    cardBorder: "#a855f7",
-  },
-  gold: {
-    primaryStart: "#78350f",
-    primaryEnd: "#b45309",
-    accent: "#fef08a",
-    accentText: "#fef9c3",
-    bgGradient: "linear-gradient(135deg, #fffbeb 0%, #fef3c7 50%, #fde68a 100%)",
-    badgeBg: "#fef3c7",
-    badgeText: "#92400e",
-    cardBorder: "#f59e0b",
-  },
-};
+  const { data: classrooms = [] } = useQuery<{ id: string; name: string; grade: string | null; section: string | null }[]>({
+    queryKey: ["admin", "classrooms-lite"],
+    queryFn: async () => {
+      const { data, error } = await sb.from("classrooms").select("id, name, grade, section").order("name");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
 
-export function StudentIdCard({
-  student,
-  settings,
-  customization,
-  className = "",
-  scale = 1,
-}: {
-  student: Student;
-  settings?: SiteSettings | null;
-  customization: CardCustomization;
-  className?: string;
-  scale?: number;
-}) {
-  const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>("");
+  // State
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedClassroom, setSelectedClassroom] = useState<string>("all");
+  const [selectedStudents, setSelectedStudents] = useState<Record<string, boolean>>({});
+  const [previewStudent, setPreviewStudent] = useState<Student | null>(null);
+  const [groupByClass, setGroupByClass] = useState<boolean>(true);
 
-  const origin = typeof window !== "undefined" ? window.location.origin : "";
-  const profileUrl = `${origin}/p/student/${student.qr_token || student.id}`;
+  // Customization controls
+  const [customization, setCustomization] = useState<CardCustomization>({
+    schoolName: settings?.school_name || "MAA SARSWATI VIDYA MANDIR J.H. SCHOOL",
+    motto: settings?.motto || "॥ विद्या ददाति विनयम् ॥",
+    session: "2026-27",
+    principalName: settings?.principal_name || "Principal",
+    themeColor: "navy",
+    bgStyle: "gradient",
+    phone: settings?.phone || "8887845857, 9415620250",
+    address: settings?.address || "Near Patar Kalan Chauraha, Dubar Market, Lalganj Mirzapur",
+    website: "www.maasarswatividyamandir.in",
+    showBackSide: false,
+  });
 
-  useEffect(() => {
-    QRCode.toDataURL(profileUrl, {
-      width: 220,
-      margin: 1,
-      color: {
-        dark: "#0f172a",
-        light: "#ffffff",
-      },
-    })
-      .then(setQrCodeDataUrl)
-      .catch((err) => console.error("QR Code generation error:", err));
-  }, [profileUrl]);
+  const [activeTab, setActiveTab] = useState<"front" | "back">("front");
 
-  const schoolName = customization.schoolName || settings?.school_name || "MAA SARSWATI VIDYA MANDIR J.H. SCHOOL";
-  const motto = customization.motto || settings?.motto || "॥ विद्या ददाति विनयम् ॥";
-  const logoUrl = customization.logoUrl || settings?.logo_url;
-  const address = customization.address || settings?.address || "Near Patar Kalan Chauraha, Dubar Market, Lalganj Mirzapur";
-  const phone = customization.phone || settings?.phone || "8887845857, 9415620250";
-  const session = customization.session || "2026-27";
+  // Keep customization updated when settings load
+  useMemo(() => {
+    if (settings) {
+      setCustomization((prev) => ({
+        ...prev,
+        schoolName: settings.school_name || prev.schoolName,
+        motto: settings.motto || prev.motto,
+        principalName: settings.principal_name || prev.principalName,
+        phone: settings.phone || prev.phone,
+        address: settings.address || prev.address,
+      }));
+    }
+  }, [settings]);
 
-  const themeKey = customization.themeColor || "navy";
-  const theme = themeMap[themeKey] || themeMap.navy;
-  const bgStyle = customization.bgStyle || "gradient";
+  // Filter students
+  const filteredStudents = useMemo(() => {
+    return students.filter((s) => {
+      const matchesSearch =
+        `${s.first_name} ${s.last_name || ""}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (s.admission_no && s.admission_no.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (s.roll_no && s.roll_no.toLowerCase().includes(searchTerm.toLowerCase()));
 
-  const firstName = (student.first_name || "").trim();
-  const lastName = (student.last_name || "").trim();
-  const studentDisplayName = firstName ? (lastName ? `${firstName} ${lastName}` : firstName) : "Gudiya";
+      const matchesClass = selectedClassroom === "all" || s.classroom_id === selectedClassroom;
 
-  const studentRegCode = student.admission_no || `MSGM${student.id ? student.id.slice(0, 7).toUpperCase() : "2024007"}`;
+      return matchesSearch && matchesClass;
+    });
+  }, [students, searchTerm, selectedClassroom]);
 
-  const classVal = student.grade || "8th";
-  const secVal = student.section ? ` / ${student.section}` : "";
-  const studentClassSection = `${classVal}${secVal}`;
+  // Count per classroom for quick pills
+  const classroomCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: students.length };
+    students.forEach((s) => {
+      if (s.classroom_id) {
+        counts[s.classroom_id] = (counts[s.classroom_id] || 0) + 1;
+      }
+    });
+    return counts;
+  }, [students]);
 
-  const mobileNo = student.phone || student.father_phone || student.guardian_phone || "9005542945";
-  const studentAddress = student.address || "Garbar Nava Gav";
+  // Selection handlers
+  const toggleSelectAll = () => {
+    const allSelected = filteredStudents.length > 0 && filteredStudents.every((s) => selectedStudents[s.id]);
+    const updated: Record<string, boolean> = { ...selectedStudents };
+
+    filteredStudents.forEach((s) => {
+      updated[s.id] = !allSelected;
+    });
+
+    setSelectedStudents(updated);
+  };
+
+  const toggleSelectStudent = (id: string) => {
+    setSelectedStudents((prev) => ({
+      ...prev,
+      [id]: !prev[id],
+    }));
+  };
+
+  const selectedCount = useMemo(() => {
+    return filteredStudents.filter((s) => selectedStudents[s.id]).length;
+  }, [filteredStudents, selectedStudents]);
+
+  // Determine students to print
+  const studentsToPrint = useMemo(() => {
+    const selectedList = filteredStudents.filter((s) => selectedStudents[s.id]);
+    return selectedList.length > 0 ? selectedList : filteredStudents;
+  }, [filteredStudents, selectedStudents]);
+
+  // Group and chunk students into A4 pages (10 cards per A4 sheet: 2 cols x 5 rows)
+  const printPages = useMemo(() => {
+    const list = studentsToPrint;
+    if (list.length === 0) return [];
+
+    if (groupByClass && selectedClassroom === "all") {
+      // Group students class-wise
+      const groups: Record<string, { className: string; students: Student[] }> = {};
+      
+      list.forEach((student) => {
+        const classId = student.classroom_id || "unassigned";
+        const clsObj = classrooms.find((c) => c.id === student.classroom_id);
+        const className = clsObj
+          ? `${clsObj.name} ${clsObj.grade ? `(${clsObj.grade}${clsObj.section ? "-" + clsObj.section : ""})` : ""}`
+          : [student.grade, student.section].filter(Boolean).join("-") || "General Class";
+
+        if (!groups[classId]) {
+          groups[classId] = { className, students: [] };
+        }
+        groups[classId].students.push(student);
+      });
+
+      // Chunk each class into pages of 10 cards max
+      const pages: { className: string; students: Student[]; pageNum: number; totalPagesInClass: number }[] = [];
+      
+      Object.values(groups).forEach((g) => {
+        const chunks = chunkArray(g.students, 10);
+        chunks.forEach((chunk, pageIdx) => {
+          pages.push({
+            className: g.className,
+            students: chunk,
+            pageNum: pageIdx + 1,
+            totalPagesInClass: chunks.length,
+          });
+        });
+      });
+
+      return pages;
+    } else {
+      // Single class or continuous batch mode: chunk into pages of 10 cards
+      const chunks = chunkArray(list, 10);
+      const clsObj = classrooms.find((c) => c.id === selectedClassroom);
+      const className = clsObj
+        ? `${clsObj.name} ${clsObj.grade ? `(${clsObj.grade}${clsObj.section ? "-" + clsObj.section : ""})` : ""}`
+        : "Class Batch";
+
+      return chunks.map((chunk, pageIdx) => ({
+        className,
+        students: chunk,
+        pageNum: pageIdx + 1,
+        totalPagesInClass: chunks.length,
+      }));
+    }
+  }, [studentsToPrint, groupByClass, selectedClassroom, classrooms]);
+
+  const handlePrint = () => {
+    if (studentsToPrint.length === 0) {
+      toast.error("No students selected for printing.");
+      return;
+    }
+    toast.success(`Preparing ${studentsToPrint.length} ID Card(s) across ${printPages.length} A4 page(s)...`);
+    setTimeout(() => {
+      window.print();
+    }, 300);
+  };
 
   return (
-    <div
-      className={`print-card-wrapper inline-block text-slate-900 select-none ${className}`}
-      style={{
-        transform: scale !== 1 ? `scale(${scale})` : undefined,
-        transformOrigin: "top left",
-      }}
-    >
-      {/* Universal Aadhaar Card / CR80 standard dimensions: 85.6mm x 53.98mm with outer cut outline */}
-      <div
-        className="id-card-container relative overflow-hidden rounded-2xl border-2 border-dashed p-[1.5mm] shadow-xl flex flex-col justify-between transition-all"
-        style={{
-          width: "85.6mm",
-          height: "53.98mm",
-          borderColor: theme.cardBorder,
-          backgroundColor: "#ffffff",
-          boxSizing: "border-box",
-        }}
-      >
-        {/* Inner Card Content */}
-        <div 
-          className="w-full h-full flex flex-col justify-between rounded-xl overflow-hidden relative border border-slate-200/80 shadow-xs"
-          style={{ background: bgStyle !== "minimal" ? theme.bgGradient : "#ffffff" }}
-        >
-          {!customization.showBackSide ? (
-            /* FRONT SIDE OF ID CARD */
-            <div className="h-full w-full flex flex-col justify-between relative overflow-hidden">
-              
-              {/* Optional Background Watermark / Pattern Layer */}
-              {bgStyle === "watermark" && logoUrl && (
-                <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-0 opacity-[0.08]">
-                  <img src={logoUrl} alt="Watermark" className="w-28 h-28 object-contain filter grayscale" />
-                </div>
-              )}
-
-              {bgStyle === "mesh" && (
-                <div 
-                  className="absolute inset-0 pointer-events-none z-0 opacity-20"
-                  style={{
-                    backgroundImage: `radial-gradient(${theme.primaryEnd} 0.5px, transparent 0.5px)`,
-                    backgroundSize: "6px 6px",
-                  }}
-                />
-              )}
-
-              {/* 1. TOP CURVED HEADER BANNER */}
-              <div className="relative w-full text-white shrink-0 z-20">
-                <div 
-                  className="px-2 pt-1 pb-2 flex items-center justify-between relative shadow-sm overflow-hidden"
-                  style={{ 
-                    background: `linear-gradient(135deg, ${theme.primaryStart} 0%, ${theme.primaryEnd} 100%)`
-                  }}
-                >
-                  {/* Glass Reflection Highlight line */}
-                  <div className="absolute inset-x-0 top-0 h-[1px] bg-white/30" />
-
-                  {/* School Logo */}
-                  <div className="shrink-0 mr-1.5 z-10">
-                    {logoUrl ? (
-                      <img src={logoUrl} alt="Logo" className="h-7.5 w-7.5 object-contain bg-white rounded-full p-0.5 border-2 border-amber-400 shadow-sm" />
-                    ) : (
-                      <div className="h-7.5 w-7.5 rounded-full bg-white text-blue-900 grid place-items-center font-bold text-[9px] border-2 border-amber-400 shadow-sm">
-                        <Shield size={16} className="fill-amber-400 text-blue-900" />
-                      </div>
-                    )}
-                  </div>
-
-                  {/* School Name & Motto */}
-                  <div className="flex-1 min-w-0 text-center z-10 px-0.5">
-                    <h1 
-                      className="font-black tracking-tight text-[8.8px] leading-none uppercase drop-shadow-xs font-sans truncate"
-                      style={{ color: theme.accentText }}
-                    >
-                      {schoolName}
-                    </h1>
-                    <p className="text-[6.5px] text-amber-100 font-semibold tracking-wide leading-tight truncate mt-0.5">
-                      {motto}
-                    </p>
-                  </div>
-
-                  {/* Values Badge */}
-                  <div className="shrink-0 z-10 flex items-center gap-1 pl-1 border-l border-white/20">
-                    <BookOpen size={11} className="text-white shrink-0" />
-                    <div className="text-[4.8px] font-black leading-[1.05] uppercase tracking-tighter text-left" style={{ color: theme.accentText }}>
-                      <div>KNOWLEDGE</div>
-                      <div>DISCIPLINE</div>
-                      <div>VALUES</div>
-                    </div>
-                  </div>
-
-                  {/* Soft Background glow bubble */}
-                  <div className="absolute -right-4 -bottom-4 w-16 h-16 bg-white/10 rounded-full blur-xs pointer-events-none" />
-                </div>
-
-                {/* Smooth Multi-Layered Curve Arc at Bottom of Header */}
-                <div className="w-full overflow-hidden leading-none -mt-[0.2px] pointer-events-none">
-                  <svg className="w-full h-[3.4mm] block" viewBox="0 0 500 40" preserveAspectRatio="none">
-                    <path d="M0,0 Q250,38 500,0 L500,0 L0,0 Z" fill={theme.primaryEnd} />
-                    <path d="M0,0 Q250,38 500,0" fill="none" stroke={theme.accent} strokeWidth="5" />
-                  </svg>
-                </div>
-              </div>
-
-              {/* 2. MIDDLE CONTENT AREA (Photo & Student Details) */}
-              <div className="flex-1 px-1.5 py-0.5 flex gap-1.5 items-start overflow-hidden z-10 -mt-1">
-                
-                {/* Student Photo Section */}
-                <div className="flex flex-col items-center shrink-0 pt-0.5">
-                  <div className="w-[18mm] h-[22.5mm] rounded-md overflow-hidden border-2 border-amber-400 bg-white shadow-sm relative flex items-center justify-center">
-                    {student.photo_url ? (
-                      <img src={student.photo_url} alt={studentDisplayName} className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex flex-col items-center justify-center bg-amber-50 text-amber-700">
-                        <User size={26} />
-                      </div>
-                    )}
-                  </div>
-                  {/* Verified Tag */}
-                  <div className="mt-0.5 px-1 py-[0.5px] rounded bg-slate-900 text-white text-[4.5px] font-bold tracking-wider uppercase flex items-center gap-0.5 shadow-2xs">
-                    <CheckCircle2 size={5} className="text-emerald-400" />
-                    <span>VERIFIED</span>
-                  </div>
-                </div>
-
-                {/* Student Details Fields */}
-                <div className="flex-1 min-w-0 pt-0.5">
-                  <div className="space-y-[1.2px] text-[7.2px] text-slate-900 leading-tight">
-                    
-                    {/* STUDENT NAME (BOLD VIVID RED) */}
-                    <div className="flex items-baseline">
-                      <span className="w-[20mm] font-bold text-slate-800 shrink-0">STUDENT NAME</span>
-                      <span className="font-extrabold text-red-600 uppercase truncate text-[8px] pl-0.5 tracking-tight">
-                        : {studentDisplayName}
-                      </span>
-                    </div>
-
-                    {/* FATHER'S NAME */}
-                    <div className="flex items-baseline">
-                      <span className="w-[20mm] font-bold text-slate-800 shrink-0">FATHER'S NAME</span>
-                      <span className="font-bold text-slate-900 uppercase truncate pl-0.5">
-                        : {student.father_name || "Santalal"}
-                      </span>
-                    </div>
-
-                    {/* CLASS / SECTION */}
-                    <div className="flex items-baseline">
-                      <span className="w-[20mm] font-bold text-slate-800 shrink-0">CLASS / SECTION</span>
-                      <span className="font-bold text-slate-900 uppercase truncate pl-0.5">
-                        : {studentClassSection}
-                      </span>
-                    </div>
-
-                    {/* SESSION */}
-                    <div className="flex items-baseline">
-                      <span className="w-[20mm] font-bold text-slate-800 shrink-0">SESSION</span>
-                      <span className="font-bold text-slate-900 truncate pl-0.5">
-                        : {session}
-                      </span>
-                    </div>
-
-                    {/* MOBILE NO */}
-                    <div className="flex items-baseline">
-                      <span className="w-[20mm] font-bold text-slate-800 shrink-0">MOBILE NO</span>
-                      <span className="font-bold text-slate-900 truncate pl-0.5">
-                        : {mobileNo}
-                      </span>
-                    </div>
-
-                    {/* ADDRESS */}
-                    <div className="flex items-baseline">
-                      <span className="w-[20mm] font-bold text-slate-800 shrink-0">ADDRESS</span>
-                      <span className="font-bold text-slate-900 truncate pl-0.5 max-w-[32mm]">
-                        : {studentAddress}
-                      </span>
-                    </div>
-
-                  </div>
-                </div>
-
-                {/* RIGHT COLUMN: QR Code, Reg No, Principal Signature */}
-                <div className="w-[16mm] shrink-0 flex flex-col items-center justify-between h-full pt-0.5 pr-0.5">
-                  {/* Reg / Student Code */}
-                  <div className="text-[5.5px] font-black text-slate-900 tracking-tighter uppercase text-center truncate w-full bg-slate-100/90 py-[0.5px] rounded border border-slate-300">
-                    {studentRegCode}
-                  </div>
-
-                  {/* Dynamic QR Code */}
-                  <div className="p-[0.5px] bg-white border border-slate-300 rounded-md shadow-2xs my-0.5">
-                    {qrCodeDataUrl ? (
-                      <img src={qrCodeDataUrl} alt="QR Code" className="w-[10.5mm] h-[10.5mm]" />
-                    ) : (
-                      <div className="w-[10.5mm] h-[10.5mm] bg-slate-200 animate-pulse rounded" />
-                    )}
-                  </div>
-
-                  {/* Principal Signature & Title */}
-                  <div className="text-center w-full mt-auto flex flex-col items-center">
-                    {/* Red Handwritten Signature Graphic */}
-                    <svg className="w-10 h-3 text-red-600" viewBox="0 0 100 30" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M10 22 C 20 5, 30 25, 45 12 C 55 2, 60 28, 75 10 C 85 5, 90 20, 95 15" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
-                      <path d="M15 18 L 85 24" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                    </svg>
-                    
-                    <div className="w-full border-t border-slate-400 text-[5px] uppercase font-black text-slate-800 tracking-wider pt-0.5">
-                      PRINCIPAL
-                    </div>
-                  </div>
-
-                </div>
-
-              </div>
-
-              {/* 3. SCHOOL ADDRESS AT BOTTOM OF THE CARD */}
-              <div 
-                className="w-full text-white py-[1.2mm] px-2 flex items-center justify-between border-t-2 border-amber-400 shrink-0 z-20 text-[5.8px] leading-none shadow-xs"
-                style={{ background: `linear-gradient(135deg, ${theme.primaryStart} 0%, ${theme.primaryEnd} 100%)` }}
-              >
-                <div className="flex items-center gap-1 truncate max-w-[70%]">
-                  <MapPin size={8} className="text-amber-300 shrink-0" />
-                  <span className="font-semibold truncate text-slate-100 uppercase tracking-tight">{address}</span>
-                </div>
-                <div className="flex items-center gap-1 shrink-0">
-                  <Phone size={8} className="text-amber-300 shrink-0" />
-                  <span className="font-extrabold text-amber-300 tracking-tighter">{phone}</span>
-                </div>
-              </div>
-
+    <div className="space-y-6">
+      {/* Hide all controls and screen UI when printing */}
+      <div className="print:hidden space-y-6">
+        <AdminHeader
+          title="Student ID Cards"
+          subtitle="Generate, customize, and batch-print universal Aadhaar / CR80 size student ID cards (10 ID Cards per A4 sheet)."
+          action={
+            <div className="flex flex-wrap items-center gap-2">
+              <button onClick={handlePrint} className="btn-primary flex items-center gap-2 shadow-md">
+                <Printer size={18} /> Print / Export PDF ({studentsToPrint.length} Cards)
+              </button>
             </div>
-          ) : (
-            /* BACK SIDE OF ID CARD */
-            <div 
-              className="h-full w-full flex flex-col justify-between p-2 relative"
-              style={{ background: bgStyle !== "minimal" ? theme.bgGradient : "#ffffff" }}
+          }
+        />
+
+        {/* Quick Batch Summary Banner */}
+        <div className="card-soft p-4 bg-gradient-to-r from-primary/10 via-primary/5 to-background border-primary/20 flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="p-3 rounded-xl bg-primary text-primary-foreground shadow-sm">
+              <FileText size={22} />
+            </div>
+            <div>
+              <div className="font-display font-semibold text-sm text-foreground flex items-center gap-2">
+                A4 PDF Layout Ready: <span className="text-primary font-bold">{printPages.length} Page(s)</span>
+                <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">
+                  10 Cards / A4 Sheet
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Exact Universal CR80 size (85.6mm × 54mm) • No size compromise • Class-wise batching supported
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-2 text-xs font-medium text-foreground cursor-pointer bg-background/80 px-3 py-1.5 rounded-lg border border-border">
+              <input
+                type="checkbox"
+                checked={groupByClass}
+                onChange={(e) => setGroupByClass(e.target.checked)}
+                className="rounded border-input text-primary focus:ring-primary h-4 w-4"
+              />
+              <span>Separate Class Pages when printing</span>
+            </label>
+
+            <button
+              onClick={handlePrint}
+              className="btn-gold text-xs py-2 px-4 flex items-center gap-1.5 shadow-sm"
             >
-              <div className="text-center pb-1 border-b border-slate-300">
-                <h3 className="font-black text-[8.5px] uppercase text-slate-900 tracking-wider">
-                  STUDENT RECORD & EMERGENCY DETAILS
-                </h3>
+              <Printer size={15} /> Print Batch PDF
+            </button>
+          </div>
+        </div>
+
+        {/* Customization & Settings Panel */}
+        <div className="card-soft p-5 bg-gradient-to-br from-background to-muted/30 border border-border">
+          <div className="flex items-center justify-between border-b border-border pb-3 mb-4">
+            <div className="flex items-center gap-2">
+              <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                <CreditCard size={18} />
               </div>
-
-              <div className="space-y-1 my-auto text-[7px] text-slate-700">
-                <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 bg-white/90 p-1.5 rounded-lg border border-slate-200 shadow-2xs">
-                  <div>
-                    <span className="font-semibold text-slate-500 block">Father's Name:</span>
-                    <span className="font-bold text-slate-900">{student.father_name || "Santalal"}</span>
-                  </div>
-                  <div>
-                    <span className="font-semibold text-slate-500 block">Mobile No:</span>
-                    <span className="font-bold text-slate-900">{mobileNo}</span>
-                  </div>
-                  <div>
-                    <span className="font-semibold text-slate-500 block">Mother's Name:</span>
-                    <span className="font-bold text-slate-900">{student.mother_name || "—"}</span>
-                  </div>
-                  <div>
-                    <span className="font-semibold text-slate-500 block">Blood Group:</span>
-                    <span className="font-bold text-red-600">{student.blood_group || "—"}</span>
-                  </div>
-                </div>
-
-                <div className="bg-white/90 p-1 rounded-lg border border-slate-200 shadow-2xs">
-                  <span className="font-semibold text-slate-500 block">Residential Address:</span>
-                  <span className="font-bold text-slate-900 block truncate">{studentAddress}</span>
-                </div>
-
-                <div className="text-[6px] text-slate-500 leading-tight italic">
-                  * This ID card is non-transferable and must be presented on demand. If found, please return to school administration.
-                </div>
-              </div>
-
-              {/* Back Footer */}
-              <div 
-                className="pt-1 border-t border-amber-400 flex justify-between items-center text-[6.5px] text-white font-bold p-1.5 rounded-b-lg shadow-xs"
-                style={{ background: `linear-gradient(135deg, ${theme.primaryStart} 0%, ${theme.primaryEnd} 100%)` }}
-              >
-                <span className="truncate max-w-[50%]">{schoolName}</span>
-                <span>Helpline: {phone}</span>
+              <div>
+                <h2 className="font-display font-semibold text-base">Card Template & Styling Options</h2>
+                <p className="text-xs text-muted-foreground">Standard Universal Aadhaar Card / CR80 Format (85.6 mm × 54.0 mm)</p>
               </div>
             </div>
-          )}
+
+            {/* Side Toggle */}
+            <div className="flex rounded-lg bg-muted p-1 text-xs">
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab("front");
+                  setCustomization((prev) => ({ ...prev, showBackSide: false }));
+                }}
+                className={`px-3 py-1 rounded-md font-medium transition ${activeTab === "front" ? "bg-background text-foreground shadow-xs" : "text-muted-foreground"}`}
+              >
+                Front Side
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab("back");
+                  setCustomization((prev) => ({ ...prev, showBackSide: true }));
+                }}
+                className={`px-3 py-1 rounded-md font-medium transition ${activeTab === "back" ? "bg-background text-foreground shadow-xs" : "text-muted-foreground"}`}
+              >
+                Back Side
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 text-sm">
+            {/* Color Theme Selector */}
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1.5">Theme Color</label>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {[
+                  { id: "navy", name: "Classic Navy", color: "#0f2b5c" },
+                  { id: "emerald", name: "Emerald", color: "#064e3b" },
+                  { id: "crimson", name: "Crimson", color: "#881337" },
+                  { id: "midnight", name: "Midnight", color: "#0f172a" },
+                  { id: "royal", name: "Royal Purple", color: "#581c87" },
+                  { id: "gold", name: "Luxury Gold", color: "#b45309" },
+                ].map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    title={t.name}
+                    onClick={() => setCustomization((prev) => ({ ...prev, themeColor: t.id as any }))}
+                    className={`h-6.5 w-6.5 rounded-full border-2 transition grid place-items-center ${
+                      customization.themeColor === t.id ? "border-amber-400 scale-110 shadow-md ring-2 ring-amber-400/40" : "border-transparent opacity-80 hover:opacity-100"
+                    }`}
+                    style={{ backgroundColor: t.color }}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Background Style Selector */}
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1">Background Style</label>
+              <select
+                value={customization.bgStyle || "gradient"}
+                onChange={(e) => setCustomization((prev) => ({ ...prev, bgStyle: e.target.value as any }))}
+                className="w-full rounded-lg border border-input bg-background px-3 py-1.5 text-xs font-medium"
+              >
+                <option value="gradient">🎨 Soft Gradient Tint</option>
+                <option value="mesh">✨ Modern Mesh Pattern</option>
+                <option value="watermark">🛡️ Logo Watermark</option>
+                <option value="minimal">⚪ Minimal Clean White</option>
+              </select>
+            </div>
+
+            {/* School Name */}
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1">School Name</label>
+              <input
+                type="text"
+                value={customization.schoolName}
+                onChange={(e) => setCustomization((prev) => ({ ...prev, schoolName: e.target.value }))}
+                className="w-full rounded-lg border border-input bg-background px-3 py-1.5 text-xs"
+                placeholder="School Name"
+              />
+            </div>
+
+            {/* Tagline */}
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1">Motto / Subtitle</label>
+              <input
+                type="text"
+                value={customization.motto}
+                onChange={(e) => setCustomization((prev) => ({ ...prev, motto: e.target.value }))}
+                className="w-full rounded-lg border border-input bg-background px-3 py-1.5 text-xs"
+                placeholder="Knowledge | Excellence"
+              />
+            </div>
+
+            {/* Academic Session */}
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1">Academic Session</label>
+              <input
+                type="text"
+                value={customization.session}
+                onChange={(e) => setCustomization((prev) => ({ ...prev, session: e.target.value }))}
+                className="w-full rounded-lg border border-input bg-background px-3 py-1.5 text-xs"
+                placeholder="2026-27"
+              />
+            </div>
+          </div>
         </div>
+
+        {/* Quick Classroom Pills Filter */}
+        {classrooms.length > 0 && (
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none text-xs">
+            <span className="text-muted-foreground font-semibold text-[11px] uppercase tracking-wider shrink-0 flex items-center gap-1">
+              <School size={14} /> Class Filter:
+            </span>
+            <button
+              type="button"
+              onClick={() => setSelectedClassroom("all")}
+              className={`px-3 py-1.5 rounded-full font-medium shrink-0 transition ${
+                selectedClassroom === "all"
+                  ? "bg-primary text-primary-foreground shadow-xs"
+                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+              }`}
+            >
+              All Classes ({classroomCounts.all || 0})
+            </button>
+            {classrooms.map((c) => {
+              const count = classroomCounts[c.id] || 0;
+              const isSelected = selectedClassroom === c.id;
+              const label = `${c.name}${c.grade ? ` (${c.grade}${c.section ? "-" + c.section : ""})` : ""}`;
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => setSelectedClassroom(c.id)}
+                  className={`px-3 py-1.5 rounded-full font-medium shrink-0 transition flex items-center gap-1.5 ${
+                    isSelected
+                      ? "bg-primary text-primary-foreground shadow-xs font-semibold"
+                      : "bg-muted text-muted-foreground hover:bg-muted/80"
+                  }`}
+                >
+                  <span>{label}</span>
+                  <span className={`px-1.5 py-0.2 text-[10px] rounded-full ${isSelected ? "bg-white/20 text-white" : "bg-background text-foreground"}`}>
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Filters and Batch Actions Bar */}
+        <div className="card-soft p-4 flex flex-wrap items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center gap-3 flex-1 min-w-[280px]">
+            {/* Search Box */}
+            <div className="relative flex-1 min-w-[200px]">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search student by name, roll no, admission no..."
+                className="w-full pl-9 pr-3 py-1.5 text-sm rounded-lg border border-input bg-background"
+              />
+            </div>
+
+            {/* Classroom Select Dropdown */}
+            <select
+              value={selectedClassroom}
+              onChange={(e) => setSelectedClassroom(e.target.value)}
+              className="py-1.5 px-3 text-sm rounded-lg border border-input bg-background font-medium"
+            >
+              <option value="all">All Classes ({students.length})</option>
+              {classrooms.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name} {c.grade ? `(${c.grade}${c.section ? "-" + c.section : ""})` : ""} ({classroomCounts[c.id] || 0} students)
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Select All & Status */}
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={toggleSelectAll}
+              className="btn-outline text-xs flex items-center gap-1.5 py-1.5 px-3"
+            >
+              {filteredStudents.length > 0 && filteredStudents.every((s) => selectedStudents[s.id]) ? (
+                <>
+                  <CheckSquare size={14} className="text-primary" /> Deselect All
+                </>
+              ) : (
+                <>
+                  <Square size={14} /> Select All in Class ({filteredStudents.length})
+                </>
+              )}
+            </button>
+
+            <div className="text-xs text-muted-foreground font-medium">
+              Selected: <span className="font-bold text-foreground">{selectedCount}</span> of {filteredStudents.length}
+            </div>
+          </div>
+        </div>
+
+        {/* Loading state */}
+        {isLoadingStudents ? (
+          <div className="card-soft p-12 text-center text-muted-foreground">Loading student records...</div>
+        ) : filteredStudents.length === 0 ? (
+          <div className="card-soft p-12 text-center text-muted-foreground">No students found matching your search or class criteria.</div>
+        ) : (
+          /* Students ID Cards Grid View for Web Screen */
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6">
+            {filteredStudents.map((student) => {
+              const isSelected = !!selectedStudents[student.id];
+
+              return (
+                <div
+                  key={student.id}
+                  className={`card-soft p-4 flex flex-col items-center relative transition-all duration-200 ${
+                    isSelected ? "ring-2 ring-primary border-primary bg-primary/5" : "hover:border-primary/50"
+                  }`}
+                >
+                  {/* Select Checkbox Top Left */}
+                  <div className="absolute top-3 left-3 z-20">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleSelectStudent(student.id);
+                      }}
+                      className="p-1 rounded bg-background/80 hover:bg-background border border-border shadow-xs"
+                    >
+                      {isSelected ? <CheckSquare size={18} className="text-primary" /> : <Square size={18} className="text-muted-foreground" />}
+                    </button>
+                  </div>
+
+                  {/* Actions Top Right */}
+                  <div className="absolute top-3 right-3 z-20 flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setPreviewStudent(student)}
+                      title="Preview Card"
+                      className="p-1.5 rounded-md bg-background/80 hover:bg-background border border-border text-muted-foreground hover:text-foreground shadow-xs"
+                    >
+                      <Eye size={15} />
+                    </button>
+                  </div>
+
+                  {/* ID Card Display */}
+                  <div className="mt-6 mb-2 cursor-pointer" onClick={() => toggleSelectStudent(student.id)}>
+                    <StudentIdCard student={student} classrooms={classrooms} settings={settings} customization={customization} />
+                  </div>
+
+                  {/* Student Quick Meta */}
+                  <div className="w-full text-center mt-2 pt-2 border-t border-border/60 flex items-center justify-between text-xs text-muted-foreground">
+                    <span className="font-semibold text-foreground truncate max-w-[150px]">
+                      {student.first_name} {student.last_name || ""}
+                    </span>
+                    <span>Roll {student.roll_no || "—"}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Fullscreen Card Preview Modal */}
+        {previewStudent && (
+          <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4 backdrop-blur-xs">
+            <div className="card-soft p-6 max-w-lg w-full bg-background rounded-2xl shadow-2xl relative">
+              <div className="flex items-center justify-between border-b border-border pb-3 mb-4">
+                <h3 className="font-display font-semibold text-lg">Student ID Card Preview</h3>
+                <button type="button" onClick={() => setPreviewStudent(null)} className="p-1.5 rounded-lg hover:bg-muted">
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="flex flex-col items-center justify-center p-6 bg-muted/40 rounded-xl border border-border my-2">
+                <StudentIdCard student={previewStudent} classrooms={classrooms} settings={settings} customization={customization} scale={1.25} />
+              </div>
+
+              <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
+                <div>
+                  Token: <code className="bg-muted px-1.5 py-0.5 rounded">{previewStudent.qr_token || previewStudent.id}</code>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPreviewStudent(null);
+                      setSelectedStudents({ [previewStudent.id]: true });
+                      setTimeout(window.print, 200);
+                    }}
+                    className="btn-primary text-xs flex items-center gap-1"
+                  >
+                    <Printer size={14} /> Print Single
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* PRINT-ONLY CONTAINER (Hidden on Screen, ONLY rendered on window.print()) */}
+      <div id="id-cards-print-area" className="hidden print:block font-sans">
+        <style dangerouslySetInnerHTML={{ __html: printStyles }} />
+        {printPages.map((page, pageIndex) => (
+          <div key={pageIndex} className="a4-print-page">
+            {page.students.map((student) => (
+              <div key={student.id} className="print-card-box">
+                <StudentIdCard student={student} classrooms={classrooms} settings={settings} customization={customization} />
+              </div>
+            ))}
+          </div>
+        ))}
       </div>
     </div>
   );
 }
 
+// Print CSS styles strictly optimized for 10 ID Cards per A4 Sheet (2 Columns x 5 Rows)
+// Standard CR80 / Universal Aadhaar Card size: 85.6mm width × 53.98mm height
+const printStyles = `
+@media print {
+  /* HIDE ALL WEBSITE UI AND SIDEBAR */
+  html, body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
 
+  aside, header, nav, footer, .print\\:hidden, [data-sonner-toaster] {
+    display: none !important;
+  }
 
+  #id-cards-print-area {
+    display: block !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+  }
+
+  @page {
+    size: A4 portrait;
+    margin: 5mm 6mm 5mm 6mm;
+  }
+
+  .a4-print-page {
+    width: 198mm !important;
+    height: 286mm !important;
+    padding: 1mm !important;
+    margin: 0 auto !important;
+    box-sizing: border-box !important;
+    display: grid !important;
+    grid-template-columns: repeat(2, 85.6mm) !important;
+    grid-template-rows: repeat(5, 53.98mm) !important;
+    gap: 3.5mm 6.5mm !important;
+    justify-content: center !important;
+    align-content: start !important;
+    page-break-after: always !important;
+    break-after: page !important;
+    overflow: hidden !important;
+  }
+
+  .a4-print-page:last-child {
+    page-break-after: auto !important;
+    break-after: auto !important;
+  }
+
+  .print-card-box {
+    width: 85.6mm !important;
+    height: 53.98mm !important;
+    box-sizing: border-box !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  .print-card-box * {
+    box-shadow: none !important;
+  }
+}
+`;
