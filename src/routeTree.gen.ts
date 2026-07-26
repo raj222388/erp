@@ -27,6 +27,7 @@ import { Route as AuthenticatedAdminEventsRouteImport } from './routes/_authenti
 import { Route as AuthenticatedAdminFaqsRouteImport } from './routes/_authenticated/admin.faqs'
 import { Route as AuthenticatedAdminGalleryRouteImport } from './routes/_authenticated/admin.gallery'
 import { Route as AuthenticatedAdminHeroRouteImport } from './routes/_authenticated/admin.hero'
+import { Route as AuthenticatedAdminIdCardsRouteImport } from './routes/_authenticated/admin.id-cards'
 import { Route as AuthenticatedAdminMessagesRouteImport } from './routes/_authenticated/admin.messages'
 import { Route as AuthenticatedAdminNewsRouteImport } from './routes/_authenticated/admin.news'
 import { Route as AuthenticatedAdminNoticesRouteImport } from './routes/_authenticated/admin.notices'
@@ -130,6 +131,12 @@ const AuthenticatedAdminHeroRoute = AuthenticatedAdminHeroRouteImport.update({
   path: '/hero',
   getParentRoute: () => AuthenticatedAdminRoute,
 } as any)
+const AuthenticatedAdminIdCardsRoute =
+  AuthenticatedAdminIdCardsRouteImport.update({
+    id: '/id-cards',
+    path: '/id-cards',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 const AuthenticatedAdminMessagesRoute =
   AuthenticatedAdminMessagesRouteImport.update({
     id: '/messages',
@@ -205,6 +212,7 @@ export interface FileRoutesByFullPath {
   '/admin/faqs': typeof AuthenticatedAdminFaqsRoute
   '/admin/gallery': typeof AuthenticatedAdminGalleryRoute
   '/admin/hero': typeof AuthenticatedAdminHeroRoute
+  '/admin/id-cards': typeof AuthenticatedAdminIdCardsRoute
   '/admin/messages': typeof AuthenticatedAdminMessagesRoute
   '/admin/news': typeof AuthenticatedAdminNewsRoute
   '/admin/notices': typeof AuthenticatedAdminNoticesRoute
@@ -233,6 +241,7 @@ export interface FileRoutesByTo {
   '/admin/faqs': typeof AuthenticatedAdminFaqsRoute
   '/admin/gallery': typeof AuthenticatedAdminGalleryRoute
   '/admin/hero': typeof AuthenticatedAdminHeroRoute
+  '/admin/id-cards': typeof AuthenticatedAdminIdCardsRoute
   '/admin/messages': typeof AuthenticatedAdminMessagesRoute
   '/admin/news': typeof AuthenticatedAdminNewsRoute
   '/admin/notices': typeof AuthenticatedAdminNoticesRoute
@@ -264,6 +273,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/faqs': typeof AuthenticatedAdminFaqsRoute
   '/_authenticated/admin/gallery': typeof AuthenticatedAdminGalleryRoute
   '/_authenticated/admin/hero': typeof AuthenticatedAdminHeroRoute
+  '/_authenticated/admin/id-cards': typeof AuthenticatedAdminIdCardsRoute
   '/_authenticated/admin/messages': typeof AuthenticatedAdminMessagesRoute
   '/_authenticated/admin/news': typeof AuthenticatedAdminNewsRoute
   '/_authenticated/admin/notices': typeof AuthenticatedAdminNoticesRoute
@@ -295,6 +305,7 @@ export interface FileRouteTypes {
     | '/admin/faqs'
     | '/admin/gallery'
     | '/admin/hero'
+    | '/admin/id-cards'
     | '/admin/messages'
     | '/admin/news'
     | '/admin/notices'
@@ -323,6 +334,7 @@ export interface FileRouteTypes {
     | '/admin/faqs'
     | '/admin/gallery'
     | '/admin/hero'
+    | '/admin/id-cards'
     | '/admin/messages'
     | '/admin/news'
     | '/admin/notices'
@@ -353,6 +365,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/faqs'
     | '/_authenticated/admin/gallery'
     | '/_authenticated/admin/hero'
+    | '/_authenticated/admin/id-cards'
     | '/_authenticated/admin/messages'
     | '/_authenticated/admin/news'
     | '/_authenticated/admin/notices'
@@ -510,6 +523,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminHeroRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/id-cards': {
+      id: '/_authenticated/admin/id-cards'
+      path: '/id-cards'
+      fullPath: '/admin/id-cards'
+      preLoaderRoute: typeof AuthenticatedAdminIdCardsRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/admin/messages': {
       id: '/_authenticated/admin/messages'
       path: '/messages'
@@ -589,6 +609,7 @@ interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminFaqsRoute: typeof AuthenticatedAdminFaqsRoute
   AuthenticatedAdminGalleryRoute: typeof AuthenticatedAdminGalleryRoute
   AuthenticatedAdminHeroRoute: typeof AuthenticatedAdminHeroRoute
+  AuthenticatedAdminIdCardsRoute: typeof AuthenticatedAdminIdCardsRoute
   AuthenticatedAdminMessagesRoute: typeof AuthenticatedAdminMessagesRoute
   AuthenticatedAdminNewsRoute: typeof AuthenticatedAdminNewsRoute
   AuthenticatedAdminNoticesRoute: typeof AuthenticatedAdminNoticesRoute
@@ -606,6 +627,7 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminFaqsRoute: AuthenticatedAdminFaqsRoute,
   AuthenticatedAdminGalleryRoute: AuthenticatedAdminGalleryRoute,
   AuthenticatedAdminHeroRoute: AuthenticatedAdminHeroRoute,
+  AuthenticatedAdminIdCardsRoute: AuthenticatedAdminIdCardsRoute,
   AuthenticatedAdminMessagesRoute: AuthenticatedAdminMessagesRoute,
   AuthenticatedAdminNewsRoute: AuthenticatedAdminNewsRoute,
   AuthenticatedAdminNoticesRoute: AuthenticatedAdminNoticesRoute,

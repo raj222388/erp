@@ -1,7 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useForm } from "react-hook-form";
 import { useMemo, useState } from "react";
-import { Download, Plus, ReceiptText, X } from "lucide-react";
+import { Download, Plus, ReceiptText, X, IdCard } from "lucide-react";
 import { useCollection, useMutations, RowActions, AdminHeader } from "@/components/admin/crud";
 import { QrCard } from "@/components/admin/QrCard";
 import { MediaUploadField } from "@/components/admin/MediaUploadField";
@@ -85,7 +85,24 @@ function StudentsAdmin() {
       <AdminHeader
         title="Students"
         subtitle={view === "students" ? "Manage student records, parents info, and generate QR profile passes." : "Record student payments, view class-wise balances, and download receipts."}
-        action={<div className="flex flex-wrap gap-2"><button onClick={() => setView("students")} className={view === "students" ? "btn-primary" : "btn-outline"}>Students</button><button onClick={() => { setView("fees"); setCreating(false); setEditing(null); }} className={view === "fees" ? "btn-primary" : "btn-outline"}><ReceiptText size={16} /> Fees</button>{view === "students" && <button onClick={() => { setCreating(true); setEditing(null); }} className="btn-primary"><Plus size={16} /> Add student</button>}</div>}
+        action={
+          <div className="flex flex-wrap gap-2">
+            <button onClick={() => setView("students")} className={view === "students" ? "btn-primary" : "btn-outline"}>
+              Students
+            </button>
+            <button onClick={() => { setView("fees"); setCreating(false); setEditing(null); }} className={view === "fees" ? "btn-primary" : "btn-outline"}>
+              <ReceiptText size={16} /> Fees
+            </button>
+            <Link to="/admin/id-cards" className="btn-outline flex items-center gap-1.5">
+              <IdCard size={16} /> ID Cards
+            </Link>
+            {view === "students" && (
+              <button onClick={() => { setCreating(true); setEditing(null); }} className="btn-primary">
+                <Plus size={16} /> Add student
+              </button>
+            )}
+          </div>
+        }
       />
 
       {view === "fees" ? <StudentFees /> : <>

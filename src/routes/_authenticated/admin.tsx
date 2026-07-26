@@ -3,8 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   LayoutDashboard, Settings, Users, Newspaper, Calendar, Images,
   MessageSquare, Star, HelpCircle, LogOut, Presentation, Menu, X, Bell, GraduationCap,
-  UserCircle, School,
-  BookOpen,
+  UserCircle, School, BookOpen, IdCard,
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -19,6 +18,7 @@ const items: Item[] = [
   { to: "/admin/settings", label: "Site settings", icon: Settings },
   { to: "/admin/hero", label: "Hero slider", icon: Presentation },
   { to: "/admin/students", label: "Students", icon: UserCircle },
+  { to: "/admin/id-cards", label: "Student ID Cards", icon: IdCard },
   { to: "/admin/teachers", label: "Teachers", icon: Users },
   { to: "/admin/classrooms", label: "Classrooms", icon: School },
   { to: "/admin/portal", label: "School portal", icon: BookOpen },
@@ -46,7 +46,7 @@ function AdminLayout() {
   return (
     <div className="min-h-screen bg-surface flex">
       {/* Sidebar */}
-      <aside className={`fixed lg:sticky top-0 h-screen w-64 bg-primary text-primary-foreground z-40 transition-transform lg:translate-x-0 ${open ? "translate-x-0" : "-translate-x-full"}`}>
+      <aside className={`fixed lg:sticky top-0 h-screen w-64 bg-primary text-primary-foreground z-40 transition-transform lg:translate-x-0 print:hidden ${open ? "translate-x-0" : "-translate-x-full"}`}>
         <div className="p-5 flex items-center gap-3 border-b border-primary-foreground/10">
           <div className="h-9 w-9 rounded-full bg-gold text-gold-foreground grid place-items-center"><GraduationCap size={18} /></div>
           <div>
@@ -82,11 +82,11 @@ function AdminLayout() {
 
       {/* Main */}
       <div className="flex-1 min-w-0">
-        <header className="lg:hidden sticky top-0 z-30 bg-background border-b border-border px-4 py-3 flex items-center justify-between">
+        <header className="lg:hidden sticky top-0 z-30 bg-background border-b border-border px-4 py-3 flex items-center justify-between print:hidden">
           <button onClick={() => setOpen(!open)}>{open ? <X /> : <Menu />}</button>
           <div className="font-display">Admin</div>
         </header>
-        <main className="p-6 lg:p-10 max-w-6xl">
+        <main className="p-6 lg:p-10 max-w-6xl print:p-0 print:max-w-none">
           <Outlet />
         </main>
       </div>
