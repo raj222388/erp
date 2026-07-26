@@ -114,7 +114,24 @@ function StudentsAdmin() {
           classrooms={classrooms}
           onCancel={() => { setCreating(false); setEditing(null); }}
           onSubmit={async (v) => {
-            const values = { ...v, classroom_id: v.classroom_id || null, date_of_birth: v.date_of_birth || null, admission_date: v.admission_date || null };
+            let grade = (v.grade || "").trim();
+            let section = (v.section || "").trim();
+            if (v.classroom_id) {
+              const cls = classrooms.find((c) => c.id === v.classroom_id);
+              if (cls) {
+                if (!grade) grade = cls.grade || cls.name || "";
+                if (!section) section = cls.section || "";
+              }
+            }
+            const values = {
+              ...v,
+              classroom_id: v.classroom_id || null,
+              grade: grade || null,
+              section: section || null,
+              address: (v.address || "").trim() || null,
+              date_of_birth: v.date_of_birth || null,
+              admission_date: v.admission_date || null,
+            };
             if (editing) await update.mutateAsync({ id: editing.id, values });
             else await insert.mutateAsync(values);
             setCreating(false); setEditing(null);
@@ -245,7 +262,21 @@ function StudentForm({
         <Field label="Admission #"><input {...register("admission_no")} className={inputCls} /></Field>
         <Field label="Roll #"><input {...register("roll_no")} className={inputCls} /></Field>
         <Field label="Classroom">
-          <select {...register("classroom_id")} className={inputCls}>
+          <select
+            {...register("classroom_id")}
+            onChange={(e) => {
+              const val = e.target.value;
+              setValue("classroom_id", val);
+              if (val) {
+                const cls = classrooms.find((c) => c.id === val);
+                if (cls) {
+                  setValue("grade", cls.grade || cls.name || "");
+                  setValue("section", cls.section || "");
+                }
+              }
+            }}
+            className={inputCls}
+          >
             <option value="">— none —</option>
             {classrooms.map((c) => (
               <option key={c.id} value={c.id}>{c.name}{c.grade ? ` (${c.grade}${c.section ? "-" + c.section : ""})` : ""}</option>

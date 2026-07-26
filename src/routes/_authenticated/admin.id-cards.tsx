@@ -522,7 +522,7 @@ export function AdminIdCards() {
 
                   {/* ID Card Display */}
                   <div className="mt-6 mb-2 cursor-pointer" onClick={() => toggleSelectStudent(student.id)}>
-                    <StudentIdCard student={student} settings={settings} customization={customization} />
+                    <StudentIdCard student={student} classrooms={classrooms} settings={settings} customization={customization} />
                   </div>
 
                   {/* Student Quick Meta */}
@@ -550,7 +550,7 @@ export function AdminIdCards() {
               </div>
 
               <div className="flex flex-col items-center justify-center p-6 bg-muted/40 rounded-xl border border-border my-2">
-                <StudentIdCard student={previewStudent} settings={settings} customization={customization} scale={1.25} />
+                <StudentIdCard student={previewStudent} classrooms={classrooms} settings={settings} customization={customization} scale={1.25} />
               </div>
 
               <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
@@ -583,7 +583,7 @@ export function AdminIdCards() {
           <div key={pageIndex} className="a4-print-page">
             {page.students.map((student) => (
               <div key={student.id} className="print-card-box">
-                <StudentIdCard student={student} settings={settings} customization={customization} />
+                <StudentIdCard student={student} classrooms={classrooms} settings={settings} customization={customization} />
               </div>
             ))}
           </div>

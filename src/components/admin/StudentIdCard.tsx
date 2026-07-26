@@ -121,16 +121,25 @@ export const themeMap: Record<ThemeColor, ThemeConfig> = {
   },
 };
 
+export type ClassroomLite = {
+  id: string;
+  name: string;
+  grade: string | null;
+  section: string | null;
+};
+
 export function StudentIdCard({
   student,
   settings,
   customization,
+  classrooms = [],
   className = "",
   scale = 1,
 }: {
   student: Student;
   settings?: SiteSettings | null;
   customization: CardCustomization;
+  classrooms?: ClassroomLite[];
   className?: string;
   scale?: number;
 }) {
@@ -165,16 +174,27 @@ export function StudentIdCard({
 
   const firstName = (student.first_name || "").trim();
   const lastName = (student.last_name || "").trim();
-  const studentDisplayName = firstName ? (lastName ? `${firstName} ${lastName}` : firstName) : "Gudiya";
+  const studentDisplayName = firstName ? (lastName ? `${firstName} ${lastName}` : firstName) : "—";
 
-  const studentRegCode = student.admission_no || `MSGM${student.id ? student.id.slice(0, 7).toUpperCase() : "2024007"}`;
+  const studentRegCode = student.admission_no || (student.id ? `MSGM${student.id.slice(0, 6).toUpperCase()}` : "—");
 
-  const classVal = student.grade || "8th";
-  const secVal = student.section ? ` / ${student.section}` : "";
-  const studentClassSection = `${classVal}${secVal}`;
+  // Determine Class and Section
+  const clsObj = classrooms.find((c) => c.id === student.classroom_id);
+  let studentClassSection = "—";
+  if (student.grade) {
+    const secVal = student.section ? ` / ${student.section}` : "";
+    studentClassSection = `${student.grade}${secVal}`;
+  } else if (clsObj) {
+    const gradeVal = clsObj.grade || clsObj.name;
+    const secVal = clsObj.section ? ` / ${clsObj.section}` : "";
+    studentClassSection = `${gradeVal}${secVal}`;
+  } else if (student.section) {
+    studentClassSection = student.section;
+  }
 
-  const mobileNo = student.phone || student.father_phone || student.guardian_phone || "9005542945";
-  const studentAddress = student.address || "Garbar Nava Gav";
+  const mobileNo = student.phone || student.father_phone || student.guardian_phone || "—";
+  const studentAddress = student.address || "—";
+  const fatherNameDisplay = student.father_name || "—";
 
   return (
     <div
@@ -316,7 +336,7 @@ export function StudentIdCard({
                     <div className="flex items-baseline">
                       <span className="w-[20mm] font-bold text-slate-800 shrink-0">FATHER'S NAME</span>
                       <span className="font-bold text-slate-900 uppercase truncate pl-0.5">
-                        : {student.father_name || "Santalal"}
+                        : {fatherNameDisplay}
                       </span>
                     </div>
 
@@ -420,7 +440,7 @@ export function StudentIdCard({
                 <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 bg-white/90 p-1.5 rounded-lg border border-slate-200 shadow-2xs">
                   <div>
                     <span className="font-semibold text-slate-500 block">Father's Name:</span>
-                    <span className="font-bold text-slate-900">{student.father_name || "Santalal"}</span>
+                    <span className="font-bold text-slate-900">{fatherNameDisplay}</span>
                   </div>
                   <div>
                     <span className="font-semibold text-slate-500 block">Mobile No:</span>
