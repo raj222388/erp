@@ -37,6 +37,7 @@ export type SiteSettings = {
   meta_keywords: string | null;
   og_image_url: string | null;
   analytics_code: string | null;
+  principal_signature_url: string | null;
 };
 
 export type HeroSlide = {

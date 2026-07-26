@@ -36,6 +36,7 @@ const groups: { title: string; fields: { name: keyof SiteSettings; label: string
       { name: "principal_name", label: "Name" },
       { name: "principal_photo_url", label: "Photo URL" },
       { name: "principal_message", label: "Message", multiline: true },
+      { name: "principal_signature_url", label: "Signature Image URL" },
     ],
   },
   {
@@ -122,7 +123,7 @@ function SettingsPage() {
             <div className="mt-5 grid gap-4 md:grid-cols-2">
               {g.fields.map((f) => (
                 <div key={f.name} className={f.multiline ? "md:col-span-2" : ""}>
-                  {["logo_url", "favicon_url", "principal_photo_url", "director_photo_url", "og_image_url"].includes(f.name) ? (
+                  {["logo_url", "favicon_url", "principal_photo_url", "principal_signature_url", "director_photo_url", "og_image_url"].includes(f.name) ? (
                     <MediaUploadField name={f.name} label={f.label.replace(" URL", "")} value={watch(f.name) as string | null} register={register} setValue={setValue} />
                   ) : f.multiline ? (
                     <textarea {...register(f.name)} rows={3} className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm" />

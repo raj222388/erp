@@ -28,7 +28,14 @@ export function useMutations(table: string) {
       if (error) throw error;
     },
     onSuccess: () => { invalidate(); toast.success("Added"); },
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: any) => {
+      const msg = e?.message || "Operation failed";
+      if (msg.includes("students_admission_no_key")) {
+        toast.error("Admission number is already in use by another student.");
+      } else {
+        toast.error(msg);
+      }
+    },
   });
   const update = useMutation({
     mutationFn: async ({ id, values }: { id: string; values: any }) => {
@@ -36,7 +43,14 @@ export function useMutations(table: string) {
       if (error) throw error;
     },
     onSuccess: () => { invalidate(); toast.success("Saved"); },
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: any) => {
+      const msg = e?.message || "Operation failed";
+      if (msg.includes("students_admission_no_key")) {
+        toast.error("Admission number is already in use by another student.");
+      } else {
+        toast.error(msg);
+      }
+    },
   });
   const remove = useMutation({
     mutationFn: async (id: string) => {
@@ -44,7 +58,7 @@ export function useMutations(table: string) {
       if (error) throw error;
     },
     onSuccess: () => { invalidate(); toast.success("Deleted"); },
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: any) => toast.error(e?.message || "Delete failed"),
   });
   return { insert, update, remove };
 }

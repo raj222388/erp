@@ -3,7 +3,7 @@ import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AdminHeader, useCollection } from "@/components/admin/crud";
 import { settingsQuery } from "@/lib/queries";
-import { StudentIdCard, type Student, type CardCustomization } from "@/components/admin/StudentIdCard";
+import { StudentIdCard, type Student, type CardCustomization, type CardDesign } from "@/components/admin/StudentIdCard";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Printer,
@@ -65,10 +65,12 @@ export function AdminIdCards() {
     principalName: settings?.principal_name || "Principal",
     themeColor: "navy",
     bgStyle: "gradient",
+    cardDesign: "classic",
     phone: settings?.phone || "8887845857, 9415620250",
     address: settings?.address || "Near Patar Kalan Chauraha, Dubar Market, Lalganj Mirzapur",
     website: "www.maasarswatividyamandir.in",
     showBackSide: false,
+    principalSignatureUrl: (settings as any)?.principal_signature_url || undefined,
   });
 
   const [activeTab, setActiveTab] = useState<"front" | "back">("front");
@@ -83,6 +85,7 @@ export function AdminIdCards() {
         principalName: settings.principal_name || prev.principalName,
         phone: settings.phone || prev.phone,
         address: settings.address || prev.address,
+        principalSignatureUrl: (settings as any).principal_signature_url || prev.principalSignatureUrl,
       }));
     }
   }, [settings]);
@@ -376,6 +379,45 @@ export function AdminIdCards() {
                 className="w-full rounded-lg border border-input bg-background px-3 py-1.5 text-xs"
                 placeholder="2026-27"
               />
+            </div>
+          </div>
+
+          {/* Card Design Selector */}
+          <div className="mt-4 pt-4 border-t border-border">
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-2">Card Design Layout</label>
+            <div className="flex flex-wrap gap-2">
+              {([
+                { id: "classic", label: "🎓 Classic", desc: "Original header + photo" },
+                { id: "diamond", label: "💎 Diamond", desc: "Diagonal split accent" },
+                { id: "vintage", label: "📜 Vintage", desc: "Ornamental parchment" },
+                { id: "corporate", label: "🏢 Corporate", desc: "Two-tone modern split" },
+              ] as { id: CardDesign; label: string; desc: string }[]).map((d) => (
+                <button
+                  key={d.id}
+                  type="button"
+                  onClick={() => setCustomization((prev) => ({ ...prev, cardDesign: d.id }))}
+                  className={`px-3 py-2 rounded-lg border text-xs font-medium transition flex flex-col items-start gap-0.5 ${
+                    customization.cardDesign === d.id
+                      ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                      : "bg-background text-foreground border-border hover:border-primary/50"
+                  }`}
+                >
+                  <span className="font-bold">{d.label}</span>
+                  <span className={`text-[10px] ${customization.cardDesign === d.id ? "opacity-80" : "text-muted-foreground"}`}>{d.desc}</span>
+                </button>
+              ))}
+            </div>
+            {/* Principal Signature URL override */}
+            <div className="mt-3">
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1">Principal Signature Image URL</label>
+              <input
+                type="text"
+                value={customization.principalSignatureUrl || ""}
+                onChange={(e) => setCustomization((prev) => ({ ...prev, principalSignatureUrl: e.target.value || undefined }))}
+                className="w-full rounded-lg border border-input bg-background px-3 py-1.5 text-xs"
+                placeholder="Auto-loaded from Site Settings › Principal › Signature"
+              />
+              <p className="text-[10px] text-muted-foreground mt-1">Upload the signature in <strong>Site Settings › Principal</strong>, then it auto-populates here. Or paste a direct image URL above.</p>
             </div>
           </div>
         </div>

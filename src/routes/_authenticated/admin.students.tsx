@@ -123,18 +123,51 @@ function StudentsAdmin() {
                 if (!section) section = cls.section || "";
               }
             }
+            const clean = (str: string | null | undefined) => {
+              if (!str) return null;
+              const trimmed = str.trim();
+              return trimmed.length > 0 ? trimmed : null;
+            };
             const values = {
               ...v,
+              first_name: v.first_name.trim(),
+              last_name: clean(v.last_name),
+              admission_no: clean(v.admission_no),
+              roll_no: clean(v.roll_no),
+              gender: clean(v.gender),
+              blood_group: clean(v.blood_group),
+              phone: clean(v.phone),
+              email: clean(v.email),
+              photo_url: clean(v.photo_url),
               classroom_id: v.classroom_id || null,
               grade: grade || null,
               section: section || null,
-              address: (v.address || "").trim() || null,
+              address: clean(v.address),
               date_of_birth: v.date_of_birth || null,
               admission_date: v.admission_date || null,
+              previous_school: clean(v.previous_school),
+              father_name: clean(v.father_name),
+              father_occupation: clean(v.father_occupation),
+              father_phone: clean(v.father_phone),
+              father_email: clean(v.father_email),
+              father_photo_url: clean(v.father_photo_url),
+              mother_name: clean(v.mother_name),
+              mother_occupation: clean(v.mother_occupation),
+              mother_phone: clean(v.mother_phone),
+              mother_email: clean(v.mother_email),
+              mother_photo_url: clean(v.mother_photo_url),
+              guardian_name: clean(v.guardian_name),
+              guardian_phone: clean(v.guardian_phone),
+              notes: clean(v.notes),
             };
-            if (editing) await update.mutateAsync({ id: editing.id, values });
-            else await insert.mutateAsync(values);
-            setCreating(false); setEditing(null);
+            try {
+              if (editing) await update.mutateAsync({ id: editing.id, values });
+              else await insert.mutateAsync(values);
+              setCreating(false);
+              setEditing(null);
+            } catch {
+              // Mutation onError will display toast and keep form open
+            }
           }}
         />
       )}
