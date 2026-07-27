@@ -833,6 +833,7 @@ export function StudentIdCard({
     </div>
   );
 }
+<<<<<<< HEAD
 
 // ---------------------------------------------------------------------------
 // Small helper — used in non-classic designs
@@ -861,3 +862,5 @@ function InfoRow({
     </div>
   );
 }
+=======
+>>>>>>> 2fbbcd1132f9a20156870281b3a9b00c785c4682
